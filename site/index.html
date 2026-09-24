@@ -3,38 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>betting-analytics</title>
-<meta name="description" content="Premier League match and season markets: a backtested scoreline model, sharp-market fair prices, and live Kalshi, Polymarket and bookmaker quotes.">
-<meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23161613'/%3E%3Crect x='3' y='9' width='2' height='4' fill='%23f4f2ec'/%3E%3Crect x='7' y='5' width='2' height='8' fill='%23f4f2ec'/%3E%3Crect x='11' y='3' width='2' height='10' fill='%232a78d6'/%3E%3C/svg%3E">
+<title>betting-analytics · where EPL markets are wrong</title>
+<meta name="description" content="Tested, live signals for Premier League markets on Kalshi, Polymarket and bookmakers.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%23d4ff3a'/%3E%3Cpath d='M4 11l3-4 2 2 3-4' stroke='%230b0d10' stroke-width='1.8' fill='none'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
-<script>
-  try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
-</script>
+<script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
-<header class="top">
-  <div class="wrap top-row">
-    <a class="mark" href="#/">betting-analytics</a>
-    <nav class="nav" aria-label="sections">
-      <a href="#/" data-route="board">board</a>
-      <a href="#/season" data-route="season">season</a>
-      <a href="#/record" data-route="record">record</a>
-      <a href="#/method" data-route="method">method</a>
+<header class="bar">
+  <div class="wrap">
+    <a class="logo" href="#/"><b>BA</b>betting analytics</a>
+    <nav class="tabs" aria-label="sections">
+      <a href="#/" data-r="today">Today</a>
+      <a href="#/matches" data-r="matches">Matches</a>
+      <a href="#/season" data-r="season">Season</a>
+      <a href="#/lab" data-r="lab">Lab</a>
+      <a href="#/record" data-r="record">Record</a>
     </nav>
-    <button class="theme" id="theme" type="button" aria-label="switch colour theme">theme</button>
+    <span class="fresh" id="fresh"></span>
+    <button class="mode" id="mode" type="button" aria-label="colour theme">◐</button>
   </div>
-  <div class="wrap status" id="status" aria-live="polite">loading</div>
 </header>
 <main class="wrap" id="app"></main>
-<footer class="wrap foot">
-  <p>Premier League only. Forecasts are probabilities, not advice. Sources: football-data.co.uk, Understat, Fantasy Premier League, Kalshi, Polymarket. Code and data: <a href="https://github.com/mahmedken/betting-analytics">github.com/mahmedken/betting-analytics</a>.</p>
+<footer class="wrap">
+  Premier League only. Probabilities, not advice. Data: football-data.co.uk, Understat, Fantasy Premier League, Kalshi, Polymarket.
+  <a href="#/method">How it works</a> · <a href="https://github.com/mahmedken/betting-analytics">Code</a>
 </footer>
-<div class="tip" id="tip" role="tooltip" hidden></div>
+<div class="tip" id="tip" hidden></div>
 <script type="module" src="assets/app.js"></script>
 </body>
 </html>

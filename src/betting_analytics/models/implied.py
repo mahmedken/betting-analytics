@@ -20,6 +20,33 @@ from scipy import optimize
 from . import dixon_coles as dc
 
 
+def implied_rates_rho(p1x2: np.ndarray, p_over25: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Rates and Dixon-Coles rho that reproduce 1X2 and over/under 2.5 exactly (3 equations, 3 unknowns).
+
+    Fixing rho = 0 makes a Poisson model underprice draws relative to the
+    market; freeing rho lets the scoreline distribution match the draw price,
+    so side markets priced from it are consistent with the full 1X2 price.
+    """
+    p1x2 = np.atleast_2d(np.asarray(p1x2, dtype=float))
+    po = np.atleast_1d(np.asarray(p_over25, dtype=float))
+    n = len(p1x2)
+    lam, nu, rho = np.full(n, np.nan), np.full(n, np.nan), np.full(n, np.nan)
+    l0, n0 = implied_rates(p1x2, po, 0.0)
+    for i in range(n):
+        if not (np.isfinite(p1x2[i]).all() and np.isfinite(po[i]) and np.isfinite(l0[i])):
+            continue
+
+        def resid(x):
+            M = dc.score_matrix(np.exp(x[0]), np.exp(x[1]), x[2])
+            return np.append(dc.outcome_probs(M)[:2] - p1x2[i][:2], dc.prob_over(M, 2.5) - po[i])
+
+        sol = optimize.least_squares(resid, [np.log(l0[i]), np.log(n0[i]), 0.0],
+                                     bounds=([np.log(0.05), np.log(0.05), -0.35], [np.log(8.0), np.log(8.0), 0.35]),
+                                     xtol=1e-10, ftol=1e-12)
+        lam[i], nu[i], rho[i] = np.exp(sol.x[0]), np.exp(sol.x[1]), sol.x[2]
+    return lam, nu, rho
+
+
 def implied_rates(p1x2: np.ndarray, p_over25: np.ndarray | None, rho: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
     """Rates (lam, nu) whose DC probabilities best match the market (least squares on probabilities)."""
     p1x2 = np.atleast_2d(np.asarray(p1x2, dtype=float))

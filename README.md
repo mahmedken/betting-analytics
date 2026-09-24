@@ -11,62 +11,28 @@ Everything is computed from public data by the code in this repository and
 refreshed hourly by GitHub Actions. The site is static (`site/`) and served by
 GitHub Pages.
 
-## What the backtest found
+## What the lab found
 
-All numbers are from the walk-forward backtest on held-out seasons 2019-20 to
-2026-27 (2,710 matches). Settings were chosen on 2016-17 to 2018-19 and then
-frozen. The site's *record* page has the full tables, calibration plots and
-significance tests.
+Every idea is tested against the sharp closing price (de-margined Pinnacle or
+Betfair Exchange odds at kick-off), with all fees, a first-half / second-half
+split, and intervals that resample match days. Full results are on the site's
+**Lab** tab.
 
-| forecast, home/draw/away | RPS (lower is better) |
-|---|---|
-| Elo baseline | 0.2073 |
-| Dixon–Coles model (fitted to 50% goals, 50% xG) | 0.2009 |
-| fair price (model blended with pre-match bookmaker price) | 0.1983 |
-| bookmaker, pre-match (de-margined) | 0.1983 |
-| bookmaker, closing (de-margined) | 0.1970 |
+| finding | verdict | number |
+|---|---|---|
+| Kalshi limit orders against retail flow: bid the draw, offer against big-six wins, 2-3 days out | **edge** | +2.6% vs the close per filled order (90% CI +1.7 to +3.5), both halves positive; the same orders the other way lose 2-3% |
+| Longest bookmaker price vs a sharp-anchored fair price | **edge, hard to use** | +3.6% vs the close (736 bets); needs many bookmaker accounts |
+| Season markets vs a season simulated from match-market team strengths | suggestive | 6% lower Brier score than Kalshi's season prices last season, not yet significant |
+| Big clubs overpriced / draws underpriced on Kalshi and Polymarket a day out | real, below taker fees | +1.1¢ on big-six wins, -0.7¢ on draws |
+| 64 public-stats signals (xG luck, form, finishing, rest) vs the close | no edge | 0 significant, 0 replicated |
+| Our xG model vs the closing price | no edge | RPS 0.2009 vs 0.1970 |
+| Kalshi / Polymarket vs the close, 1 h before kick-off | no edge | equally accurate |
+| Polymarket side markets vs its own match odds | unproven | benchmark shares model error; realised returns do not confirm |
 
-- **The model alone does not beat the market.** Its weight in an encompassing
-  test against the closing price is −0.05 ± 0.14. It carries no detectable
-  information the market has not priced. The live fair price therefore puts
-  only 3% weight (log scale) on the model when a bookmaker price exists.
-- **Kalshi and Polymarket are as accurate as the sharp bookmaker close** for
-  EPL 1X2 one hour before kick-off (343 Kalshi and 430 Polymarket matches
-  since August 2025; RPS
-  differences far inside the noise).
-- **No systematic mispricing on either venue.** Buying every contract has
-  negative closing line value (CLV) on every outcome, roughly the size of the
-  trading costs.
-- **Bets chosen by the model against Pinnacle have negative CLV (about −4%).**
-  The model's disagreements with a sharp book are mostly model error. Their
-  small positive profit is luck.
-- **Price dispersion between bookmakers is the one positive signal.** When the
-  best available bookmaker price beats the fair price by 5% or more, CLV is
-  +3.6% (90% interval +2.7% to +4.5%, 736 bets). This is the effect described
-  by Kaunitz, Zhong & Kreiner (2017). In practice bookmakers limit accounts
-  that take such prices.
-
-The main lesson for the next phase: the fair price is only as fresh as its
-bookmaker odds, which football-data.co.uk publishes twice a week. A live sharp
-price feed is needed before the board can find prediction-market edges that
-survive to the close.
-
-## Pages
-
-- **board**: every venue price for the next fixtures against the fair
-  probability. Each row shows the edge after fees, its 90% interval from
-  parameter uncertainty, and the probability that the edge is positive. Also
-  lists fixtures and the largest gaps between the season simulation and the
-  season markets.
-- **match**: fair and model probabilities for every market, correct-score
-  grid, total-goals distribution, venue quotes, team strength and form.
-- **season**: 10,000 simulated seasons with parameter uncertainty. Shows title,
-  top four and relegation probabilities next to Kalshi/Polymarket prices, the
-  finishing-position distribution, and team strength with intervals.
-- **record**: backtest accuracy, calibration, encompassing tests, betting
-  simulations with CLV, the prediction-market study, and the live forward
-  record.
-- **method**: how every number is made, with references.
+The live site turns the rules that survived into signals (Today tab): Kalshi
+limit orders to post 24-96 hours before kick-off, season-market gaps, best
+bookmaker prices and cross-venue arbitrage. Every signal is logged to
+`data/ledger/signals.csv` so the rules are tracked forward.
 
 ## Method in brief
 
@@ -118,6 +84,7 @@ uv run ba data        # rebuild the match table from the sources
 uv run ba tune        # choose settings on the validation seasons (about 2 min)
 uv run ba backtest    # walk-forward test -> site/data/backtest.json (about 6 min)
 uv run ba venues      # Kalshi/Polymarket history study -> site/data/venues.json
+uv run ba lab --fetch # extend venue price caches, test hypotheses -> site/data/lab.json
 uv run ba refresh     # live forecasts and prices -> site/data/*.json
 python -m http.server -d site 8000
 ```
@@ -134,15 +101,15 @@ repository settings:
 
 ## Roadmap
 
-1. A live sharp price feed (for example Betfair Exchange or an odds API) so the
-   fair price moves with the market between football-data.co.uk updates.
-2. Team news: injuries, suspensions and expected line-ups, the largest
-   information gap between the model and the market.
-3. Backtest the season simulation against past seasons' final tables and
-   season-market prices.
-4. More leagues. The pipeline is league-agnostic, and lower divisions are
-   usually priced less efficiently.
-5. Alerts when a venue price moves away from the fair price by more than its
-   historical noise.
+1. Settle the signals ledger automatically (fill, closing price, result) so
+   the Kalshi limit-order edge is confirmed or rejected on live data.
+2. Record Polymarket order books hourly; Polymarket makers pay no fee and
+   earn rebates, so the same retail-flow edge may be larger there, but its
+   price history has no bid/ask to test it.
+3. A live sharp price feed (Betfair Exchange or an odds API) between
+   football-data.co.uk updates.
+4. Team news (injuries, line-ups): the largest information gap between the
+   model and the market.
+5. More leagues; lower divisions are usually priced less efficiently.
 
 Forecasts are probabilities, not advice.

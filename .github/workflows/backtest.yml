@@ -24,7 +24,7 @@ concurrency:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -36,6 +36,7 @@ jobs:
         run: uv run ba tune
       - run: uv run ba backtest
       - run: uv run ba venues
+      - run: uv run ba lab --fetch
       - name: commit
         run: |
           git config user.name "github-actions[bot]"

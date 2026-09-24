@@ -21,7 +21,12 @@ from ..models.dixon_coles import DixonColes
 
 
 def simulate(model: DixonColes, played: pd.DataFrame, remaining: pd.DataFrame, teams: list[str],
-             n_sims: int = 10000, seed: int = 0, batch: int = 500) -> dict:
+             n_sims: int = 10000, seed: int = 0, batch: int = 500, draw_params: bool = True,
+             drift_sd_per_week: float = 0.0, now: pd.Timestamp | None = None) -> dict:
+    """draw_params: sample parameters from the Laplace posterior per simulation.
+    drift_sd_per_week: each team's net rating follows a random walk with this
+    sd per week from `now` to each remaining fixture (requires remaining to
+    have kickoff_utc)."""
     rng = np.random.default_rng(seed)
     t_ix = {t: i for i, t in enumerate(teams)}
     n_t = len(teams)
@@ -49,6 +54,13 @@ def simulate(model: DixonColes, played: pd.DataFrame, remaining: pd.DataFrame, t
     ai = np.array([t_ix[t] for t in away], dtype=int)
     n_m = len(remaining)
     G = dc.MAX_GOALS + 1
+    if drift_sd_per_week > 0 and n_m:
+        now = now if now is not None else pd.Timestamp.now(tz="UTC")
+        wk = ((pd.to_datetime(remaining["kickoff_utc"], utc=True) - now).dt.total_seconds() / (7 * 86400)).clip(lower=0)
+        wk = wk.fillna(wk.max() if wk.notna().any() else 0).values
+        fx_order = np.argsort(wk)
+        wk_sorted = wk[fx_order]
+        steps = np.diff(np.concatenate([[0.0], wk_sorted]))
 
     positions = np.zeros((n_t, n_t))      # team x finishing position counts
     points_sum = np.zeros(n_t)
@@ -60,8 +72,18 @@ def simulate(model: DixonColes, played: pd.DataFrame, remaining: pd.DataFrame, t
         gf = np.tile(gf0, (b, 1))
         ga = np.tile(ga0, (b, 1))
         if n_m:
-            th = model.sample_theta(b, rng)
-            M = model.score_matrix(home, away, th).reshape(b, n_m, G * G)   # (b, n_m, G*G)
+            th = model.sample_theta(b, rng) if draw_params else np.tile(model.theta, (b, 1))
+            lam, nu = model.rates(home, away, th)                          # (b, n_m)
+            if drift_sd_per_week > 0:
+                inc = rng.normal(0, 1, (b, n_m, n_t)) * (drift_sd_per_week * np.sqrt(steps))[None, :, None]
+                walk = np.cumsum(inc, axis=1)                                # (b, n_m sorted, n_t)
+                shift = np.empty_like(walk)
+                shift[:, fx_order, :] = walk
+                sh = shift[:, np.arange(n_m), hi]
+                sa = shift[:, np.arange(n_m), ai]
+                lam = lam * np.exp((sh - sa) / 2)
+                nu = nu * np.exp((sa - sh) / 2)
+            M = dc.score_matrix(lam, nu, model.rho).reshape(b, n_m, G * G)   # (b, n_m, G*G)
             cdf = np.cumsum(M, axis=-1)
             u = rng.random((b, n_m, 1))
             k = np.minimum((u > cdf).sum(axis=-1), G * G - 1)

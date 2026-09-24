@@ -21,7 +21,11 @@ from ..models import devig, implied
 from ..models import dixon_coles as dc
 from ..models.fitting import DCConfig, History, fit_as_of
 from ..models.pool import LogPool
+from ..evaluation import backtest
+from ..evaluation.report import _clean as _clean_json
+from ..models import market_ratings
 from . import ledger as ledger_mod
+from . import signals as signals_mod
 from . import pricing, season_sim
 
 HORIZON_DAYS = 21
@@ -227,6 +231,7 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
         status["football-data.co.uk odds"] = {"ok": False, "error": str(exc)[:200]}
     sharp = _sharp_book(fd_fix) if len(fd_fix) else pd.DataFrame(columns=["home", "away"])
     quotes = [_book_quotes(fd_fix)] if len(fd_fix) else []
+    kalshi_q = pd.DataFrame()
 
     if not skip_venues:
         for name, fn in (("kalshi", kalshi.match_quotes), ("polymarket", polymarket.match_quotes)):
@@ -238,6 +243,8 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
                     q["cost"] = [pricing.cost_per_contract(a, name, f) if pd.notna(a) else np.nan
                                  for a, f in zip(q["ask"], fee)]
                     quotes.append(q)
+                    if name == "kalshi":
+                        kalshi_q = q
             except Exception as exc:
                 status[f"{name} match markets"] = {"ok": False, "error": str(exc)[:200]}
                 traceback.print_exc()
@@ -361,9 +368,18 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
     # ------------------------------------------------------------------
     # Season simulation and futures
     # ------------------------------------------------------------------
+    # Team strengths implied by the closing prices of recent matches (the
+    # market's view), with rating drift; see models.market_ratings and the
+    # "futures" finding in the lab.
     played = df[(df["season"] == season) & df["hg"].notna()][["home", "away", "hg", "ag"]]
-    remaining = fx[~fx["finished"]][["home", "away"]]
-    sim = season_sim.simulate(model, played, remaining, teams_now, n_sims=n_sims, seed=int(now.timestamp()) // 3600)
+    remaining = fx[~fx["finished"]][["home", "away", "kickoff_utc"]]
+    lab = signals_mod._lab()
+    drift = (lab.get("futures") or {}).get("drift_sd_per_week", 0.045)
+    rates = market_ratings.implied_match_rates(df[df["season"] >= season - 1], backtest.market_probs(df[df["season"] >= season - 1]))
+    mkt_model = market_ratings.fit(rates, now, teams_now).model
+    sim = season_sim.simulate(mkt_model, played, remaining, teams_now, n_sims=n_sims,
+                              seed=int(now.timestamp()) // 3600, draw_params=False,
+                              drift_sd_per_week=drift, now=now)
     futures = []
     if not skip_venues:
         for name, fn in (("kalshi", kalshi.futures_quotes), ("polymarket", polymarket.futures_quotes)):
@@ -374,7 +390,7 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
             except Exception as exc:
                 status[f"{name} season markets"] = {"ok": False, "error": str(exc)[:200]}
     fut_df = pd.concat(futures, ignore_index=True) if futures else pd.DataFrame()
-    ratings = _team_ratings(model, teams_now)
+    ratings = _team_ratings(mkt_model, teams_now)
     rating_by_team = {x["team"]: x for x in ratings}
     for t in sim["teams"]:
         t.update({"name": display(t["team"]), "code": code(t["team"]), "rating": rating_by_team[t["team"]]})
@@ -391,6 +407,7 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
                     p = t[mkt]
                     t["markets"][mkt][q.venue] = {
                         "bid": _r(q.bid), "ask": _r(q.ask), "last": _r(q.last), "volume": _r(q.volume, 0),
+                        "fee_rate": _r(fee_rate) if pd.notna(fee_rate) else None,
                         "edge_yes": _r(p / cost_yes - 1) if pd.notna(cost_yes) and cost_yes > 0 else None,
                         "edge_no": _r((1 - p) / cost_no - 1) if pd.notna(cost_no) and cost_no > 0 else None}
 
@@ -408,6 +425,16 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
     # JSON for the site
     # ------------------------------------------------------------------
     opps_sorted = sorted(opps, key=lambda o: -(o.get("edge") or -9))
+    sig = {"maker": signals_mod.maker_signals(kalshi_q, upcoming, now, lab),
+           "season": signals_mod.season_signals(sim["teams"], lab),
+           "best_price": signals_mod.best_price_signals(matches, lab),
+           "arbitrage": signals_mod.arbitrage_signals(matches)}
+    signals_mod.log([x for v in sig.values() for x in v], now)
+    by_match = {}
+    for s_ in sig["maker"] + sig["best_price"] + sig["arbitrage"]:
+        by_match.setdefault(s_["match_id"], []).append(s_["type"])
+    for m in matches:
+        m["signals"] = by_match.get(m["match_id"], [])
     played_all = df[df["hg"].notna()]
     meta = {
         "generated_utc": now.isoformat(),
@@ -419,13 +446,16 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
                   "last_result_utc": str(played_all["kickoff_utc"].max())},
         "sources": status,
         "counts": {"upcoming": len(matches), "quotes": int(sum(len(m["quotes"]) for m in matches)),
-                   "opportunities_pos": int(sum(1 for o in opps if (o.get("edge") or 0) > 0))},
+                   "opportunities_pos": int(sum(1 for o in opps if (o.get("edge") or 0) > 0)),
+                   "signals": {k: len(v) for k, v in sig.items()},
+                   "kalshi_markets_open": int(len(kalshi_q))},
     }
     _write("meta.json", meta)
     _write("board.json", {"generated_utc": now.isoformat(), "opportunities": opps_sorted})
+    _write("signals.json", {"generated_utc": now.isoformat(), **_clean_json(sig)})
     _write("matches.json", {"generated_utc": now.isoformat(), "matches": matches})
     _write("season.json", {"generated_utc": now.isoformat(), "season": config.season_label(season),
-                           "n_sims": sim["n_sims"], "played": int(len(played)),
+                           "n_sims": sim["n_sims"], "played": int(len(played)), "drift_sd_per_week": drift,
                            "remaining": int(len(remaining)), "teams": sim["teams"]})
     settled = led[led["result"].isin(["H", "D", "A"])]
     _write("ledger.json", {"generated_utc": now.isoformat(), "score": ledger_mod.score(led),

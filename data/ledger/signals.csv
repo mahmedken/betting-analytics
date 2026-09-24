@@ -1,0 +1,23 @@
+id,type,first_seen_utc,venue,match_id,team,what,action,price,cost,expected
+season|Nott'm Forest|relegation|polymarket|yes,season,2026-09-24T15:26:18+00:00,Polymarket,,Nott'm Forest,Nott'm Forest to be relegated,buy,0.08,0.0837,0.9622370936902487
+season|Coventry|relegation|kalshi|no,season,2026-09-24T15:26:18+00:00,Kalshi,,Coventry,Coventry not to be relegated,buy,0.30000000000000004,0.3147,0.31998728948204613
+season|Nott'm Forest|relegation|kalshi|yes,season,2026-09-24T15:26:18+00:00,Kalshi,,Nott'm Forest,Nott'm Forest to be relegated,buy,0.12,0.1274,0.2889349409696056
+season|Chelsea|top4|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Chelsea,Chelsea not to finish top four,buy,0.48,0.4925,0.2207602339181287
+season|Man City|title|polymarket|yes,season,2026-09-24T15:26:18+00:00,Polymarket,,Man City,Man City to win the league,buy,0.39,0.3971,0.20008964160982234
+season|Sunderland|relegation|polymarket|yes,season,2026-09-24T15:26:18+00:00,Polymarket,,Sunderland,Sunderland to be relegated,buy,0.22,0.2286,0.194330212617027
+season|Coventry|relegation|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Coventry,Coventry not to be relegated,buy,0.33999999999999997,0.3512,0.18273446842434948
+season|Man City|title|kalshi|yes,season,2026-09-24T15:26:18+00:00,Kalshi,,Man City,Man City to win the league,buy,0.4,0.4168,0.14347408829174668
+season|Liverpool|top4|polymarket|yes,season,2026-09-24T15:26:18+00:00,Polymarket,,Liverpool,Liverpool to finish top four,buy,0.57,0.5823,0.11085349202668948
+season|Ipswich|relegation|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Ipswich,Ipswich not to be relegated,buy,0.55,0.5624,0.1095799066459211
+season|Hull|relegation|polymarket|yes,season,2026-09-24T15:26:18+00:00,Polymarket,,Hull,Hull to be relegated,buy,0.56,0.5723,0.0962398658093373
+season|Hull|relegation|kalshi|yes,season,2026-09-24T15:26:18+00:00,Kalshi,,Hull,Hull to be relegated,buy,0.56,0.5772,0.08688120184045656
+season|Arsenal|title|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Arsenal,Arsenal not to win the league,buy,0.52,0.5275,0.08665979131278778
+season|Crystal Palace|relegation|kalshi|no,season,2026-09-24T15:26:18+00:00,Kalshi,,Crystal Palace,Crystal Palace not to be relegated,buy,0.6699999999999999,0.6855,0.0719542741769601
+season|Crystal Palace|relegation|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Crystal Palace,Crystal Palace not to be relegated,buy,0.6799999999999999,0.6909,0.0635710977304309
+season|Man City|top4|polymarket|yes,season,2026-09-24T15:26:18+00:00,Polymarket,,Man City,Man City to finish top four,buy,0.91,0.9141,0.06312801185872385
+season|Newcastle|relegation|kalshi|no,season,2026-09-24T15:26:18+00:00,Kalshi,,Newcastle,Newcastle not to be relegated,buy,0.9,0.9063,0.06145867814189554
+season|Fulham|relegation|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Fulham,Fulham not to be relegated,buy,0.72,0.7301,0.046186719263642484
+season|Tottenham|top4|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Tottenham,Tottenham not to finish top four,buy,0.94,0.9428,0.03837423898517223
+season|Leeds|top4|polymarket|no,season,2026-09-24T15:26:18+00:00,Polymarket,,Leeds,Leeds not to finish top four,buy,0.91,0.9141,0.03468457873634567
+season|Aston Villa|relegation|polymarket|yes,season,2026-09-24T15:38:00+00:00,Polymarket,,Aston Villa,Aston Villa to be relegated,buy,0.056,0.0586,0.5381152460984395
+season|Brighton|top4|polymarket|no,season,2026-09-24T15:38:00+00:00,Polymarket,,Brighton,Brighton not to finish top four,buy,0.71,0.7203,0.042767199550184154

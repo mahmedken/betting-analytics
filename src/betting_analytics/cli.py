@@ -4,6 +4,7 @@
     ba tune       choose hyperparameters on the validation seasons
     ba backtest   walk-forward test on the held-out seasons -> site/data/backtest.json
     ba venues     Kalshi / Polymarket price history vs outcomes -> site/data/venues.json
+    ba lab        test mispricing hypotheses -> site/data/lab.json (--fetch extends price caches)
     ba refresh    live forecasts, prices, season simulation, ledger -> site/data/*.json
 """
 
@@ -80,6 +81,17 @@ def cmd_venues(args) -> None:
     venues.run(fetch=not args.no_fetch)
 
 
+def cmd_lab(args) -> None:
+    from .evaluation import lab
+    if args.fetch:
+        from .data import dataset, venue_paths
+        df = dataset.load()
+        venue_paths.fetch_kalshi_paths(df)
+        venue_paths.fetch_polymarket_paths(df)
+        venue_paths.fetch_kalshi_candles(df)
+    lab.run()
+
+
 def cmd_refresh(args) -> None:
     from .live import pipeline
     pipeline.run(n_draws=args.draws, n_sims=args.sims, skip_venues=args.skip_venues)
@@ -98,6 +110,9 @@ def main(argv=None) -> None:
     v = sub.add_parser("venues")
     v.add_argument("--no-fetch", action="store_true")
     v.set_defaults(func=cmd_venues)
+    lb = sub.add_parser("lab")
+    lb.add_argument("--fetch", action="store_true", help="extend the venue price caches first")
+    lb.set_defaults(func=cmd_lab)
     r = sub.add_parser("refresh")
     r.add_argument("--draws", type=int, default=1000)
     r.add_argument("--sims", type=int, default=10000)
