@@ -1,0 +1,49 @@
+{
+  "dixon_coles": {
+    "xi": 0.004,
+    "w_goals": 0.5,
+    "prior_sd": 1.0,
+    "window_days": 1825
+  },
+  "elo": {
+    "k": 6.0,
+    "home_adv": 120.0,
+    "carry": 1.0
+  },
+  "promoted_prior": {
+    "att": -0.18869053111347533,
+    "dfn": 0.2079074890195516,
+    "sd": 0.19075211735178518,
+    "estimated_on_seasons": [
+      "2006-07",
+      "2007-08",
+      "2008-09",
+      "2009-10",
+      "2010-11",
+      "2011-12",
+      "2012-13",
+      "2013-14",
+      "2014-15",
+      "2015-16"
+    ]
+  },
+  "validation_seasons": [
+    "2016-17",
+    "2017-18",
+    "2018-19"
+  ],
+  "live": {
+    "alpha": 0.030832483240081265,
+    "pool_a": 0.04158663463410085,
+    "pool_b": 0.9694323488693221,
+    "fitted_on": [
+      "2016-17",
+      "2025-26"
+    ]
+  },
+  "selection_rule": "one-standard-error rule on validation RPS, most regularised (smallest prior sd)",
+  "validation_rps": {
+    "chosen": 0.18767833931926003,
+    "best": 0.1875485397317165
+  }
+}

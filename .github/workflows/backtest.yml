@@ -1,0 +1,46 @@
+name: backtest
+
+# Weekly: extend the Kalshi / Polymarket price history, rerun the walk-forward
+# backtest (which also refits the live model-market blend weight), commit.
+# Hyperparameter tuning only runs when requested, because re-tuning after
+# seeing test results would contaminate the held-out evaluation.
+on:
+  schedule:
+    - cron: "40 5 * * 2"
+  workflow_dispatch:
+    inputs:
+      tune:
+        description: "re-run hyperparameter tuning on the validation seasons"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - run: uv sync --frozen
+      - run: uv run ba data
+      - if: ${{ inputs.tune }}
+        run: uv run ba tune
+      - run: uv run ba backtest
+      - run: uv run ba venues
+      - name: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data site/data
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "data: weekly backtest $(date -u +%Y-%m-%d)"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
