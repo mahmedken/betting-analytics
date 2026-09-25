@@ -145,6 +145,14 @@ def espn_team_meta() -> dict:
 # Polymarket group-winner markets
 # ---------------------------------------------------------------------------
 
+def _yes_token(m: dict) -> str | None:
+    try:
+        ids = json.loads(m.get("clobTokenIds") or "[]")
+    except (TypeError, ValueError):
+        return None
+    return str(ids[0]) if ids else None
+
+
 def polymarket_groups() -> pd.DataFrame:
     rows = []
     for g in "abcdefghijkl":
@@ -161,7 +169,7 @@ def polymarket_groups() -> pd.DataFrame:
                          "last": float(m["lastTradePrice"]) if m.get("lastTradePrice") is not None else np.nan,
                          "volume": float(m.get("volume") or 0),
                          "fee_rate": ((m.get("feeSchedule") or {}).get("rate") if m.get("feesEnabled") else 0.0),
-                         "slug": m.get("slug")})
+                         "slug": m.get("slug"), "token": _yes_token(m)})
     return pd.DataFrame(rows)
 
 

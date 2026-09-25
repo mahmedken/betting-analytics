@@ -60,3 +60,26 @@ def test_sparse_fit_recovers_strength_order():
     net = dict(zip(m.teams, m.theta[2:2 + n] - m.theta[2 + n:]))
     assert [t for t, _ in sorted(net.items(), key=lambda x: -x[1])] == teams
     assert abs(m.theta[1] - 0.2) < 0.08
+
+
+def test_goal_clock_remaining_share():
+    from betting_analytics.models import inplay
+    share = np.full(90, 0.9 / 90)
+    clock = inplay.GoalClock(share, 0.04, 0.06, 3.0, 6.0)
+    assert abs(clock.remaining(0.0) - 1.0) < 1e-9
+    assert abs(clock.remaining(45.0, halftime=True) - (0.45 + 0.06)) < 1e-9
+    assert abs(clock.remaining(45.0, 1.5) - (0.02 + 0.45 + 0.06)) < 1e-9     # halfway through first-half stoppage
+    assert abs(clock.remaining(90.0, 3.0) - 0.03) < 1e-9
+    assert clock.remaining(90.0, 10.0) == 0.0
+    xs = [clock.remaining(m) for m in np.arange(0, 45, 0.5)] + [clock.remaining(45, a) for a in (0.5, 1, 2)] + \
+         [clock.remaining(45, halftime=True)] + [clock.remaining(m) for m in np.arange(45.5, 90, 0.5)] + [clock.remaining(90, a) for a in (0.5, 3, 5)]
+    assert all(a >= b - 1e-12 for a, b in zip(xs, xs[1:]))
+
+
+def test_inplay_probs():
+    from betting_analytics.models import inplay
+    assert np.allclose(inplay.probs(1.5, 1.0, 2, 1, 0.0), [1, 0, 0])
+    p = inplay.probs(1.4, 1.1, 0, 0, 1.0)
+    assert abs(p.sum() - 1) < 1e-12 and p[0] > p[2]
+    # a one-goal lead late on is worth more than the same lead early
+    assert inplay.probs(1.4, 1.1, 1, 0, 0.1)[0] > inplay.probs(1.4, 1.1, 1, 0, 0.8)[0]

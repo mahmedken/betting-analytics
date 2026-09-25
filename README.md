@@ -7,9 +7,10 @@ goals, both teams to score, winning margin, correct score) and season market
 Polymarket and bookmaker quotes and publishes an honest record of how well the
 model has done.
 
-Everything is computed from public data by the code in this repository and
-refreshed hourly by GitHub Actions. The site is static (`site/`) and served by
-GitHub Pages.
+Everything is computed from public data by the code in this repository. The
+site is static (`site/`) and served by GitHub Pages. Model fits and simulations
+come from a scheduled GitHub Actions run; scores and prices are polled live by
+the page itself (see "What is live").
 
 ## What the lab found
 
@@ -68,6 +69,57 @@ Tested and rejected: a prior mean that depends on how often a team plays
   labelled unproven.
 - **Ledger.** `data/ledger/afcon_predictions.csv`, frozen at kick-off.
 
+## What is live
+
+GitHub runs the scheduled refresh on a best-effort basis: the hourly schedule
+actually fires every one to six hours. So the page polls public APIs itself
+and recomputes everything that depends on scores or prices in the browser
+(`site/assets/live.js`, `quant.js`, `eplive.js`):
+
+| source | what | how often |
+|---|---|---|
+| ESPN scoreboard | scores, match clock, goals, red cards | 15 s during matches, 2 min otherwise |
+| ESPN match summary | DraftKings odds for matches within 48 h | 2 min |
+| Polymarket order books (CLOB) | best bid / ask and size | 30 s |
+| Kalshi, through a relay | best bid / ask | 30 s |
+| `data/meta.json` | a new server run (model, simulations) | 5 min |
+
+Recomputed in the browser with ports of the Python code (checked against it
+by `site/tests/quant.test.mjs`): in-play result probabilities, bookmaker
+probabilities with the margin removed (Shin), edges after fees, the
+Premier League signal rules, and AFCON group tables and odds. When a result
+or live score arrives, the page re-simulates that group with the server's
+parameter draws, once for the server's state and once for the live state with
+the same random numbers, and moves the server's odds by the difference.
+Polling pauses while the tab is hidden. The header shows the age of each
+source; if a source cannot be reached the page keeps the server's numbers.
+
+**In-play probabilities.** Goals still to come are Poisson with the pre-match
+expected goals scaled by the share of goals international matches produce
+after the current minute: 18,012 goals in 6,123 internationals since 2010
+(martj42 goalscorers), with stoppage-time lengths estimated from ESPN's goal
+events. On 161 AFCON qualifiers with ESPN goal events, the probabilities at
+six points of each match have a calibration error of 1.7 points; when they
+gave the leading team 87%, it won 85% of the time. Red cards and the extra
+risks trailing teams take are not modelled. `uv run ba inplay` re-estimates
+and re-validates (weekly workflow).
+
+### Live Kalshi prices
+
+Kalshi's API refuses requests that carry a browser `Origin` header, so the
+page cannot read Kalshi directly; without a relay, Kalshi prices are those of
+the last server run. `proxy/kalshi-worker.js` is a read-only relay for
+Kalshi's public market and event endpoints (10-second edge cache, CORS for
+the site's origin only). To enable it:
+
+1. Create a free Cloudflare account. Workers & Pages → Create → Worker →
+   replace the code with `proxy/kalshi-worker.js` → Deploy.
+2. Put the Worker's URL in `site/data/live_config.json`:
+   `{"kalshi_proxy": "https://<name>.<account>.workers.dev"}` and push.
+
+If the site is served from a domain other than `mahmedken.github.io`, add it
+to `ALLOWED_ORIGINS` in the Worker.
+
 ## Method in brief
 
 - **Data.** football-data.co.uk: results and odds since 2005-06, including
@@ -103,7 +155,8 @@ src/betting_analytics/
   evaluation/   metrics, backtest, betting, report, venues, lab, afcon_backtest
   live/         pipeline, pricing, season_sim, ledger, signals, afcon
   cli.py        `ba` command
-site/           static dashboard (index.html, assets/, data/*.json written by the pipeline)
+site/           static dashboard (index.html, assets/, data/*.json written by the pipeline, tests/ for the browser math)
+proxy/          Cloudflare Worker relaying Kalshi's public prices to the browser
 data/           raw source cache, processed match table, model config, ledger, price snapshots
 tests/
 .github/workflows/  ci, refresh (hourly), backtest (weekly), pages
@@ -114,6 +167,7 @@ tests/
 ```
 uv sync --extra dev
 uv run pytest
+node --test site/tests/*.test.mjs proxy/*.test.mjs
 uv run ba data        # rebuild the match table from the sources
 uv run ba tune        # choose settings on the validation seasons (about 2 min)
 uv run ba backtest    # walk-forward test -> site/data/backtest.json (about 6 min)
@@ -121,7 +175,8 @@ uv run ba venues      # Kalshi/Polymarket history study -> site/data/venues.json
 uv run ba lab --fetch # extend venue price caches, test hypotheses -> site/data/lab.json
 uv run ba refresh     # live forecasts and prices -> site/data/*.json
 uv run ba afcon-backtest  # AFCON walk-forward test, sets the AFCON model settings (about 2 min)
-uv run ba afcon       # AFCON forecasts, group simulation, markets -> site/data/afcon.json
+uv run ba afcon       # AFCON forecasts, group simulation, markets -> site/data/afcon.json, afcon_sim.json
+uv run ba inplay      # goal clock and in-play validation -> site/data/inplay.json
 python -m http.server -d site 8000
 ```
 
@@ -133,7 +188,7 @@ repository settings:
 1. Make the repository public. Free GitHub Pages requires a public repository.
 2. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
 3. Actions → *refresh* → *Run workflow* for the first deployment. After that it
-   runs every hour.
+   is scheduled hourly (GitHub starts it every one to six hours).
 
 ## Roadmap
 

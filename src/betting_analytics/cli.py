@@ -107,6 +107,11 @@ def cmd_afcon_backtest(args) -> None:
     afcon_backtest.run()
 
 
+def cmd_inplay(args) -> None:
+    from .evaluation import inplay
+    inplay.run()
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(prog="ba")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -131,6 +136,7 @@ def main(argv=None) -> None:
     a = sub.add_parser("afcon", help="AFCON qualifying forecasts, group simulation and markets")
     a.add_argument("--sims", type=int, default=10000)
     a.set_defaults(func=cmd_afcon)
+    sub.add_parser("inplay", help="estimate the goal clock and validate in-play probabilities").set_defaults(func=cmd_inplay)
     sub.add_parser("afcon-backtest", help="walk-forward backtest on past AFCON qualifiers; sets the AFCON model settings").set_defaults(func=cmd_afcon_backtest)
     args = p.parse_args(argv)
     args.func(args)

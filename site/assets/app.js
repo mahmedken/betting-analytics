@@ -1,5 +1,7 @@
 import { esc, pct, signed, cents, num, badge, bar3, barsCI, teamBars, pairBars, dotRow, heatmap, posStrip, lines, legend, placeTip } from "./charts.js";
-import { pageAfcon, afconToday } from "./afcon.js";
+import { pageAfcon, afconToday, afconNeeds } from "./afcon.js";
+import { live, start, need } from "./live.js";
+import { eplMatch, eplNeeds, futuresQuote, makerLive, seasonLive, arbitrageLive } from "./eplive.js";
 
 const app = document.getElementById("app");
 const tip = document.getElementById("tip");
@@ -24,8 +26,8 @@ const VENUE = { kalshi: "Kalshi", polymarket: "Polymarket", betfair: "Betfair", 
 const cls = (x) => (x > 0 ? "pos" : x < 0 ? "neg" : "");
 const VERDICT = { "edge": "hot", "edge, hard to use": "hot", "suggestive": "", "real, below fees": "", "no edge": "cold", "unproven": "" };
 
-function teamsRow(m, size = "sm") {
-  return `<div class="teams"><div class="t">${badge(m.home, m.home_code, size)}<span>${esc(m.home_name || m.home)}</span></div><span class="vs">v</span><div class="t r">${badge(m.away, m.away_code, size)}<span>${esc(m.away_name || m.away)}</span></div></div>`;
+function teamsRow(m, size = "sm", score = null) {
+  return `<div class="teams"><div class="t">${badge(m.home, m.home_code, size)}<span>${esc(m.home_name || m.home)}</span></div>${score ? `<span class="sc">${esc(score)}</span>` : `<span class="vs">v</span>`}<div class="t r">${badge(m.away, m.away_code, size)}<span>${esc(m.away_name || m.away)}</span></div></div>`;
 }
 const fair = (m, market, sel, line = null) => (m.markets.find((x) => x.market === market && x.selection === sel && (x.line ?? null) === line) || {});
 
@@ -96,13 +98,16 @@ function fixtureCard(m) {
   const k = (sel) => m.quotes.find((q) => q.venue === "kalshi" && q.market === "1x2" && q.selection === sel);
   const kh = k("H"), kd = k("D"), ka = k("A");
   const kal = kh && kd && ka ? `${Math.round(50 * (kh.bid + kh.ask))}·${Math.round(50 * (kd.bid + kd.ask))}·${Math.round(50 * (ka.bid + ka.ask))}` : "not open";
-  const sig = (m.signals || []).length ? `<span class="tag hot">${m.signals.length} signal${m.signals.length > 1 ? "s" : ""}</span>` : `<span>${m.xg_market ? "model + market" : "model"}</span>`;
-  return `<a class="card" href="#/match/${esc(m.match_id)}">
+  const isLive = m.state === "in", done = m.state === "post";
+  const p = isLive && m.now ? m.now : [H, D, A];
+  const sig = isLive ? `<span class="tag live">live · ${esc(m.detail || m.clock || "")}</span>` : done ? `<span class="tag">full time</span>`
+    : (m.signals || []).length ? `<span class="tag hot">${m.signals.length} signal${m.signals.length > 1 ? "s" : ""}</span>` : `<span>${m.xg_market ? "model + market" : "model"}</span>`;
+  return `<a class="card${isLive ? " is-live" : ""}" href="#/match/${esc(m.match_id)}">
     <div class="when"><span>${esc(kick(m.kickoff_utc))}</span>${sig}</div>
-    ${teamsRow(m)}
-    ${bar3(m.home, m.away, H, D, A)}
-    <div class="pcts"><span>${Math.round(100 * H)}<small>home</small></span><span>${Math.round(100 * D)}<small>draw</small></span><span>${Math.round(100 * A)}<small>away</small></span></div>
-    <div class="kv"><span>xG<b>${num(m.xg_model[0], 1)}–${num(m.xg_model[1], 1)}</b></span><span>over 2.5<b>${pct(fair(m, "total", "over", 2.5).fair)}</b></span><span>Kalshi<b>${kal}</b></span></div>
+    ${teamsRow(m, "sm", isLive || done ? `${m.hg}–${m.ag}` : null)}
+    ${done ? "" : `<div data-tip="${esc(isLive && m.now ? `now, from the score and the clock: home ${pct(p[0], 1)} · draw ${pct(p[1], 1)} · away ${pct(p[2], 1)}\nbefore kick-off: ${pct(H)} · ${pct(D)} · ${pct(A)}` : "")}">${bar3(m.home, m.away, p[0], p[1], p[2])}
+    <div class="pcts"><span>${Math.round(100 * p[0])}<small>${isLive ? "home now" : "home"}</small></span><span>${Math.round(100 * p[1])}<small>draw</small></span><span>${Math.round(100 * p[2])}<small>away</small></span></div></div>`}
+    <div class="kv">${isLive || done ? `<span>before kick-off<b>${Math.round(100 * H)}·${Math.round(100 * D)}·${Math.round(100 * A)}</b></span>` : `<span>xG<b>${num(m.xg_model[0], 1)}–${num(m.xg_model[1], 1)}</b></span><span>over 2.5<b>${pct(fair(m, "total", "over", 2.5).fair)}</b></span><span>Kalshi<b>${kal}</b></span>`}</div>
   </a>`;
 }
 
@@ -126,44 +131,53 @@ function findingCard(f) {
 // Today
 // ---------------------------------------------------------------------------
 async function pageToday() {
-  const [meta, sig, md, lab, af] = await Promise.all([load("meta.json"), load("signals.json"), load("matches.json"), opt("lab.json"), opt("afcon.json")]);
-  const matches = md.matches;
-  const live = [...sig.maker, ...sig.best_price, ...sig.arbitrage];
-  const season = sig.season.slice(0, 3);
+  const [meta, sig, md, lab, af, ip, ss] = await Promise.all([load("meta.json"), load("signals.json"), load("matches.json"), opt("lab.json"), opt("afcon.json"), opt("inplay.json"), opt("season.json")]);
+  const clock = ip?.clock;
+  const matches = md.matches.map((m) => eplMatch(m, clock));
+  const started = new Set(matches.filter((m) => m.state !== "pre").map((m) => m.match_id));
+  const maker = lab ? makerLive(matches, lab) : sig.maker;
+  const best = sig.best_price.filter((s) => !started.has(s.match_id));
+  const arb = arbitrageLive(matches);
+  const seasonAll = ss ? seasonLive(ss.teams) : sig.season;
+  const live = [...maker, ...best, ...arb];
+  const season = seasonAll.slice(0, 3);
   const gw = matches.length ? matches[0].gameweek : "";
   const first = matches.length ? new Date(matches[0].kickoff_utc) : null;
   const opens = first ? new Date(first.getTime() - 96 * 3600e3) : null;
   const headline = live.length ? `<em>${live.length}</em> live signal${live.length > 1 ? "s" : ""}` : `Gameweek ${gw}`;
   const liveHtml = live.length
-    ? `<div class="grid two">${sig.maker.map(makerCard).join("")}${sig.best_price.map(bestCard).join("")}${sig.arbitrage.map(arbCard).join("")}</div>`
+    ? `<div class="grid two">${maker.map(makerCard).join("")}${best.map(bestCard).join("")}${arb.map(arbCard).join("")}</div>`
     : `<div class="notice"><div class="dot">⏱</div><p><b>No match signals right now.</b> Kalshi limit-order signals appear 24–96 hours before kick-off${opens ? `: from <b>${day(opens)}</b> for gameweek ${gw}` : ""}. ${meta.counts.kalshi_markets_open ? `Kalshi has ${meta.counts.kalshi_markets_open} match prices open.` : "Kalshi has not opened these matches yet."}</p></div>`;
   const finds = lab ? ["maker", "retail", "public_stats"].map((id) => lab.findings.find((f) => f.id === id)).filter(Boolean) : [];
   app.innerHTML = `
     <div class="hero"><h1>${headline}</h1>
-      <div class="chips"><span class="chip"><b>${matches.length}</b> fixtures</span>${first ? `<span class="chip">from <b>${day(first)}</b></span>` : ""}<span class="chip"><b>${sig.season.length}</b> season-market gaps</span></div></div>
+      <div class="chips"><span class="chip"><b>${matches.length}</b> fixtures</span>${first ? `<span class="chip">from <b>${day(first)}</b></span>` : ""}<span class="chip"><b>${seasonAll.length}</b> season-market gaps</span></div></div>
     <h2>Live signals <a href="#/lab">How they were tested →</a></h2>
     ${liveHtml}
-    ${afconToday(af)}
-    ${season.length ? `<h2>Season markets <a href="#/season">All ${sig.season.length} →</a></h2><div class="grid">${season.map(seasonCard).join("")}</div>` : ""}
+    ${afconToday(af, clock)}
+    ${season.length ? `<h2>Season markets <a href="#/season">All ${seasonAll.length} →</a></h2><div class="grid">${season.map(seasonCard).join("")}</div>` : ""}
     <h2>Fixtures <a href="#/matches">All →</a></h2>
     <div class="grid">${matches.map(fixtureCard).join("")}</div>
     ${finds.length ? `<h2>What the data says <a href="#/lab">The lab →</a></h2><div class="grid">${finds.map(findingCard).join("")}</div>` : ""}`;
+  return merge(eplNeeds(md.matches, ss), af ? afconNeeds(af) : {});
 }
 
 // ---------------------------------------------------------------------------
 // Matches
 // ---------------------------------------------------------------------------
 async function pageMatches() {
-  const md = await load("matches.json");
+  const [md, ip] = await Promise.all([load("matches.json"), opt("inplay.json")]);
   const byGw = {};
-  md.matches.forEach((m) => (byGw[m.gameweek] ||= []).push(m));
+  md.matches.map((m) => eplMatch(m, ip?.clock)).forEach((m) => (byGw[m.gameweek] ||= []).push(m));
   app.innerHTML = Object.entries(byGw).map(([gw, ms]) => `<div class="hero"><h1>Gameweek ${gw}</h1></div><div class="grid">${ms.map(fixtureCard).join("")}</div>`).join("")
     || `<div class="notice"><div class="dot">–</div><p>No fixtures scheduled.</p></div>`;
+  return eplNeeds(md.matches, null);
 }
 
 async function pageMatch(id) {
-  const [md, season] = await Promise.all([load("matches.json"), load("season.json")]);
-  const m = md.matches.find((x) => x.match_id === id);
+  const [md, season, ip] = await Promise.all([load("matches.json"), load("season.json"), opt("inplay.json")]);
+  const m0 = md.matches.find((x) => x.match_id === id);
+  const m = m0 ? eplMatch(m0, ip?.clock) : null;
   if (!m) { app.innerHTML = `<a class="back" href="#/matches">← Matches</a><div class="notice"><div class="dot">?</div><p>This match is not in the forecast window.</p></div>`; return; }
   const H = fair(m, "1x2", "H"), D = fair(m, "1x2", "D"), A = fair(m, "1x2", "A");
   const venues = [...new Set(m.quotes.map((q) => q.venue))];
@@ -172,7 +186,7 @@ async function pageMatch(id) {
       const q = m.quotes.find((x) => x.venue === v && x.market === market && x.selection === sel && (x.line ?? null) === line);
       if (!q) return `<td class="n muted">–</td>`;
       const p = q.odds ? num(q.odds, 2) : cents(q.ask);
-      return `<td class="n" data-tip="${esc(`all-in cost ${cents(q.cost, 1)} · fair ${pct(q.fair, 1)}`)}">${p} <span class="${cls(q.edge)} small">${signed(q.edge, 0)}</span></td>`;
+      return `<td class="n" data-tip="${esc(`all-in cost ${cents(q.cost, 1)} · fair ${pct(q.fair, 1)}${q.live ? "\nlive price" : ""}`)}">${p} <span class="${cls(q.edge)} small">${signed(q.edge, 0)}</span></td>`;
     };
     return `<tr><td>${VENUE[v] || v}</td>${cell("1x2", "H")}${cell("1x2", "D")}${cell("1x2", "A")}${cell("total", "over", 2.5)}${cell("total", "under", 2.5)}</tr>`;
   };
@@ -189,16 +203,17 @@ async function pageMatch(id) {
       : `${r.selection === "home" ? m.home_name : m.away_name} by ${Math.floor(r.line) + 1}+`;
   app.innerHTML = `
     <a class="back" href="#/matches">← Matches</a>
-    <div class="card" style="padding:24px">
-      <div class="when"><span>Gameweek ${m.gameweek} · ${esc(kick(m.kickoff_utc))}</span><span>${m.xg_market ? "model + bookmaker market" : "model only"}</span></div>
-      ${teamsRow(m, "")}
+    <div class="card${m.state === "in" ? " is-live" : ""}" style="padding:24px">
+      <div class="when"><span>Gameweek ${m.gameweek} · ${esc(kick(m.kickoff_utc))}</span>${m.state === "in" ? `<span class="tag live">live · ${esc(m.detail || m.clock || "")}</span>` : m.state === "post" ? `<span class="tag">full time</span>` : `<span>${m.xg_market ? "model + bookmaker market" : "model only"}</span>`}</div>
+      ${teamsRow(m, "", m.state !== "pre" ? `${m.hg}–${m.ag}` : null)}
+      ${m.state === "in" && m.now ? `<p class="small soft" style="margin:12px 0 0">Now: home ${pct(m.now[0])} · draw ${pct(m.now[1])} · away ${pct(m.now[2])}, from the score, the clock and the pre-match expected goals. Before kick-off:</p>` : ""}
       ${bar3(m.home, m.away, H.fair, D.fair, A.fair)}
       <div class="pcts" style="font-size:40px"><span>${pct(H.fair)}<small>${esc(m.home_name)}</small></span><span>${pct(D.fair)}<small>draw</small></span><span>${pct(A.fair)}<small>${esc(m.away_name)}</small></span></div>
       <div class="kv"><span>expected goals<b>${num(m.xg_model[0], 2)} – ${num(m.xg_model[1], 2)}</b></span><span>over 2.5<b>${pct(fair(m, "total", "over", 2.5).fair)}</b></span><span>both score<b>${pct(fair(m, "btts", "yes").fair)}</b></span>
         <span>home win, model range<b>${pct(H.model_ci[0])}–${pct(H.model_ci[1])}</b></span></div>
     </div>
     <h2>Prices</h2>
-    ${venues.length ? `<div class="tbl"><table><thead><tr><th>venue</th><th class="n">home</th><th class="n">draw</th><th class="n">away</th><th class="n">over 2.5</th><th class="n">under 2.5</th></tr></thead><tbody>${venues.map(priceRow).join("")}</tbody></table></div><p class="small muted">Price, then edge against the fair probability after fees.</p>`
+    ${venues.length ? `<div class="tbl"><table><thead><tr><th>venue</th><th class="n">home</th><th class="n">draw</th><th class="n">away</th><th class="n">over 2.5</th><th class="n">under 2.5</th></tr></thead><tbody>${venues.map(priceRow).join("")}</tbody></table></div><p class="small muted">Price, then edge against the fair probability after fees. ${m.state === "pre" ? "Kalshi and Polymarket prices update live." : "Edges are not shown once the match has started: the fair price is a pre-match price."}</p>`
     : `<div class="notice"><div class="dot">–</div><p>No venue has listed this match yet.</p></div>`}
     <div class="grid two" style="margin-top:24px">
       <div class="card"><h3>Scorelines</h3><div style="max-width:360px">${heatmap(S, m.home_code, m.away_code)}</div><p class="small muted">${esc(m.home_code)} goals down, ${esc(m.away_code)} across.</p></div>
@@ -213,15 +228,17 @@ async function pageMatch(id) {
       <div class="tbl" style="margin-top:12px"><table><thead><tr><th>selection</th><th class="n">fair</th><th class="n">90% range</th><th class="n">fair odds</th></tr></thead><tbody>
       ${groups.map(([t, key]) => `<tr><td colspan="4" class="muted small" style="padding-top:16px">${t}</td></tr>` + m.markets.filter((r) => r.market === key).map((r) => `<tr><td>${esc(label(r))}</td><td class="n">${pct(r.fair, 1)}</td><td class="n muted">${pct(r.fair_ci[0])}–${pct(r.fair_ci[1])}</td><td class="n">${num(1 / r.fair, 2)}</td></tr>`).join("")).join("")}
       </tbody></table></div></details>`;
+  return eplNeeds([m0], null);
 }
 
 // ---------------------------------------------------------------------------
 // Season
 // ---------------------------------------------------------------------------
 async function pageSeason() {
-  const [s, sig] = await Promise.all([load("season.json"), load("signals.json")]);
+  const s = await load("season.json");
+  const sig = { season: seasonLive(s.teams) };
   const T = s.teams;
-  const mid = (t, mk, v) => { const q = t.markets?.[mk]?.[v]; return q && q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : null; };
+  const mid = (t, mk, v) => { const q0 = t.markets?.[mk]?.[v]; const q = q0 && futuresQuote(q0, v); return q && q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : null; };
   const race = (mk, filter, title) => {
     const rows = T.filter(filter).sort((a, b) => b[mk] - a[mk]).slice(0, 7);
     return `<div class="card"><h3>${title}</h3>${legend([{ name: "match markets imply", color: "var(--blue)" }, { name: "Kalshi price", color: "var(--ink)" }])}
@@ -237,7 +254,8 @@ async function pageSeason() {
     ${gaps ? `<h2>Where season prices disagree</h2><div class="tbl"><table><thead><tr><th>contract</th><th>venue</th><th class="n">price</th><th class="n">match markets imply</th><th class="n">gap</th></tr></thead><tbody>${gaps}</tbody></table></div>` : ""}
     <h2>Projected table</h2>
     <div class="tbl"><table><thead><tr><th></th><th>team</th><th class="n">pts</th><th class="n">proj.</th><th class="n">title</th><th class="n">top 4</th><th class="n">down</th><th>finish 1 → 20</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="small muted">Team strengths are backed out of the closing prices of recent matches, so they reflect what the match market knows. Strengths drift during a season by ${num(s.drift_sd_per_week, 3)} per week (estimated on 2019–24).</p>`;
+    <p class="small muted">Team strengths are backed out of the closing prices of recent matches, so they reflect what the match market knows. Strengths drift during a season by ${num(s.drift_sd_per_week, 3)} per week (estimated on 2019–24). Kalshi and Polymarket prices update live.</p>`;
+  return eplNeeds([], s);
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +330,9 @@ async function pageRecord() {
 async function pageMethod() {
   app.innerHTML = `<div class="prose">
     <div class="hero"><h1>How it works</h1></div>
-    <p>The site looks for places where Premier League prices are systematically wrong, tests each idea on past data, and turns only the ideas that survive into live signals. Everything is computed from public data by code in the repository and refreshed hourly.</p>
+    <p>The site looks for places where Premier League prices are systematically wrong, tests each idea on past data, and turns only the ideas that survive into live signals. Everything is computed from public data by code in the repository.</p>
+    <h2>What is live</h2>
+    <p>This page polls ESPN (scores, match clock, DraftKings odds) every 15 seconds while a match is on and every 2 minutes otherwise, and Polymarket's order books every 30 seconds. Numbers that depend on them are recomputed in the browser: in-play probabilities, price edges after fees, the signal rules and AFCON group odds. The model fits, season and group simulations and bookmaker odds from football-data.co.uk come from a scheduled server run, which GitHub Actions starts every one to six hours; the header shows the age of each source. Kalshi refuses requests from web pages, so its prices come from the server run unless a relay is configured.</p>
     <h2>The benchmark</h2>
     <p>Every idea is judged against the <b>sharp closing price</b>: Pinnacle's or Betfair Exchange's odds just before kick-off with the bookmaker margin removed, the most accurate public forecast of a match. Beating it on average (closing line value) is the standard test of a real edge and far less noisy than profit.</p>
     <h2>How an idea is tested</h2>
@@ -330,36 +350,80 @@ async function pageMethod() {
 }
 
 // ---------------------------------------------------------------------------
-async function route() {
+const merge = (...ns) => {
+  const out = { espn: [], odds: [], poly: [], kalshi: [], kickoffs: [] };
+  ns.forEach((n) => Object.keys(out).forEach((k) => out[k].push(...((n && n[k]) || []))));
+  return out;
+};
+
+// rerender: the live feed or a new server run changed the data; keep the reader's place.
+async function route({ rerender = false } = {}) {
   const [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
   const r = name || "today";
   const active = r === "match" ? "matches" : r;
   document.querySelectorAll(".tabs a").forEach((a) => { if (a.dataset.r === active) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
-  tip.hidden = true;
+  const y = scrollY, open = rerender ? [...app.querySelectorAll("details")].map((d) => d.open) : [];
+  if (!rerender) tip.hidden = true;
+  let needs = null;
   try {
-    if (r === "match") await pageMatch(decodeURIComponent(arg || ""));
-    else if (r === "matches") await pageMatches();
-    else if (r === "season") await pageSeason();
-    else if (r === "afcon") await pageAfcon(app, load);
+    if (r === "match") needs = await pageMatch(decodeURIComponent(arg || ""));
+    else if (r === "matches") needs = await pageMatches();
+    else if (r === "season") needs = await pageSeason();
+    else if (r === "afcon") needs = await pageAfcon(app, load);
     else if (r === "lab") await pageLab();
     else if (r === "record") await pageRecord();
     else if (r === "method") await pageMethod();
-    else await pageToday();
+    else needs = await pageToday();
   } catch (e) {
     console.error(e);
-    app.innerHTML = `<div class="notice"><div class="dot">!</div><p>Could not load data (${esc(e.message)}).</p></div>`;
+    if (!rerender) app.innerHTML = `<div class="notice"><div class="dot">!</div><p>Could not load data (${esc(e.message)}).</p></div>`;
+    return;
   }
-  scrollTo(0, 0);
+  need(needs || {});
+  if (rerender) {
+    app.querySelectorAll("details").forEach((d, i) => { if (open[i]) d.open = true; });
+    scrollTo(0, y);
+  } else scrollTo(0, 0);
+  freshness();
+}
+
+// Header: how old the newest data on screen is; the tooltip lists every source.
+let serverUtc = null;
+function freshness() {
+  const el = document.getElementById("fresh");
+  const now = Date.now();
+  const src = { espn: "scores (ESPN)", odds: "DraftKings odds (ESPN)", poly: "Polymarket", kalshi: "Kalshi" };
+  const on = Object.entries(live.status).filter(([k, v]) => src[k] && v.ok && v.t && now - v.t < 5 * 60e3);
+  const lines = Object.entries(src).map(([k, label]) => {
+    const st = live.status[k];
+    if (k === "kalshi" && !live.proxy) return `${label}: as of the last server run (Kalshi refuses browser requests; the README explains the relay)`;
+    if (!st || !st.t && st.ok !== false) return null;
+    return `${label}: ${st.ok ? `${Math.round((now - st.t) / 1000)} s ago` : `not reachable (${st.error})`}`;
+  }).filter(Boolean);
+  if (serverUtc) lines.push(`model, simulations, bookmaker odds: ${ago(serverUtc)}`);
+  if (on.length) {
+    const newest = Math.max(...on.map(([, v]) => v.t));
+    el.innerHTML = `<i class="pulse"></i>live · ${Math.max(0, Math.round((now - newest) / 1000))} s`;
+  } else if (serverUtc) el.innerHTML = `<i></i>updated ${ago(serverUtc)}`;
+  el.dataset.tip = lines.join("\n");
 }
 
 (async () => {
+  let proxy = null;
   try {
     const meta = await load("meta.json");
     version = meta.generated_utc;
-    document.getElementById("fresh").innerHTML = `<i></i>updated ${ago(meta.generated_utc)}`;
+    serverUtc = meta.generated_utc;
+    proxy = (await opt("live_config.json"))?.kalshi_proxy || null;
   } catch (e) { /* the page shows its own error */ }
-  addEventListener("hashchange", route);
+  start({
+    proxy, version,
+    update: () => route({ rerender: true }),
+    server: (meta) => { cache.clear(); version = meta.generated_utc; serverUtc = meta.generated_utc; route({ rerender: true }); },
+  });
+  addEventListener("hashchange", () => route());
   route();
+  setInterval(freshness, 1000);
 })();
 
 document.addEventListener("pointerover", (e) => {
@@ -376,5 +440,5 @@ document.getElementById("mode").addEventListener("click", () => {
   const dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
   d.dataset.theme = dark ? "light" : "dark";
   try { localStorage.setItem("theme", d.dataset.theme); } catch (e) {}
-  route();
+  route({ rerender: true });
 });

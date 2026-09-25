@@ -40,6 +40,9 @@ jobs:
       - name: afcon backtest
         continue-on-error: true
         run: uv run ba afcon-backtest
+      - name: in-play clock and validation
+        continue-on-error: true
+        run: uv run ba inplay
       - name: commit
         run: |
           git config user.name "github-actions[bot]"

@@ -60,15 +60,25 @@ def _open_events() -> list[dict]:
         offset += 100
 
 
+def _token(m: dict) -> str | None:
+    """Order-book token id of the market's Yes outcome (the site polls its live book)."""
+    try:
+        ids = json.loads(m.get("clobTokenIds") or "[]")
+    except (TypeError, ValueError):
+        return None
+    return str(ids[0]) if ids else None
+
+
 def _quote(m: dict) -> dict:
     return {"bid": _f(m.get("bestBid")), "ask": _f(m.get("bestAsk")),
             "last": _f(m.get("lastTradePrice")), "volume": _f(m.get("volume")),
-            "liquidity": _f(m.get("liquidity")), "ticker": m.get("slug"),
+            "liquidity": _f(m.get("liquidity")), "ticker": m.get("slug"), "token": _token(m), "invert": False,
             "fee_rate": _fee_rate(m), "close_time": m.get("gameStartTime") or m.get("endDate")}
 
 
 def _complement(q: dict) -> dict:
-    no = dict(q)
+    """The No side of a binary market, quoted as the complementary selection (bid/ask from 1 - Yes ask/bid)."""
+    no = dict(q, invert=True)
     no["bid"] = None if q["ask"] is None else round(1 - q["ask"], 4)
     no["ask"] = None if q["bid"] is None else round(1 - q["bid"], 4)
     no["last"] = None if q["last"] is None else round(1 - q["last"], 4)

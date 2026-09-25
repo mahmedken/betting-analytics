@@ -14,8 +14,8 @@ import pandas as pd
 
 from .. import config
 from ..cli import load_model_config
-from ..data import dataset, football_data, fpl, kalshi, polymarket, understat
-from ..data.teams import code, display
+from ..data import dataset, espn, football_data, fpl, kalshi, polymarket, understat
+from ..data.teams import canonical, code, display
 from ..evaluation.betting import MAX_PRICE_GAP
 from ..models import devig, implied
 from ..models import dixon_coles as dc
@@ -49,6 +49,14 @@ def _r(x, nd=4):
     except (TypeError, ValueError):
         return x
     return None if not np.isfinite(xf) else round(xf, nd)
+
+
+def _flag(x) -> bool:
+    return bool(x) if isinstance(x, (bool, np.bool_)) else False
+
+
+def _str(x) -> str | None:
+    return None if x is None or (isinstance(x, float) and not np.isfinite(x)) else str(x)
 
 
 def _write(name: str, obj) -> None:
@@ -250,6 +258,14 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
                 traceback.print_exc()
     quotes_df = pd.concat(quotes, ignore_index=True) if quotes else pd.DataFrame()
 
+    # ESPN event ids let the site poll live scores for these fixtures.
+    try:
+        espn_ids = espn.event_ids("eng.1", upcoming, canonical)
+        status["ESPN scoreboard"] = {"ok": True, "n": len(espn_ids)}
+    except Exception as exc:
+        espn_ids = {}
+        status["ESPN scoreboard"] = {"ok": False, "error": str(exc)[:200]}
+
     # ------------------------------------------------------------------
     # Per-match pricing
     # ------------------------------------------------------------------
@@ -273,8 +289,10 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
             M_fair_d = dc.score_matrix(lam_fd, nu_fd, 0.0)
             fair_basis = f"model + {'Betfair Exchange' if book['book_source'] == 'bfe' else 'bookmaker average'} (alpha={alpha:.2f})"
             mkt_rates = (float(lam_m[0]), float(nu_m[0]))
+            rates_fair = [float(lam_f[0]), float(nu_f[0]), 0.0]
         else:
             M_fair, M_fair_d, fair_basis, mkt_rates = M_model, M_model_d, "model only (no bookmaker price yet)", None
+            rates_fair = [float(lam[0]), float(nu[0]), float(model.rho)]
 
         def probs(market, sel, line):
             pm = float(pricing.selection_prob(M_model, market, sel, line))
@@ -308,7 +326,9 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
             rec = {"venue": q.venue, "market": q.market, "selection": q.selection, "line": line,
                    "bid": _r(getattr(q, "bid", None)), "ask": _r(q.ask), "cost": _r(cost),
                    "odds": _r(getattr(q, "odds", None), 3), "volume": _r(getattr(q, "volume", None), 0),
-                   "ticker": getattr(q, "ticker", None), "model": _r(pm), "fair": _r(pf)}
+                   "ticker": getattr(q, "ticker", None), "token": _str(getattr(q, "token", None)),
+                   "invert": _flag(getattr(q, "invert", False)), "fee_rate": _r(getattr(q, "fee_rate", None)),
+                   "model": _r(pm), "fair": _r(pf)}
             if pd.notna(cost) and 0 < cost < 1:
                 rec["edge"] = _r(pf / cost - 1)
                 rec["edge_model"] = _r(pm / cost - 1)
@@ -351,7 +371,8 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
         matches.append({
             "match_id": r.match_id, "gameweek": int(r.gameweek), "kickoff_utc": r.kickoff_utc.isoformat(),
             "home": h, "away": a, "home_name": display(h), "away_name": display(a),
-            "home_code": code(h), "away_code": code(a),
+            "home_code": code(h), "away_code": code(a), "espn_id": espn_ids.get((h, a)),
+            "rates_fair": [_r(x, 4) for x in rates_fair],
             "xg_model": [_r(lam[0], 3), _r(nu[0], 3)],
             "xg_model_ci": [[_r(np.quantile(lam_d[:, 0], 0.05), 3), _r(np.quantile(lam_d[:, 0], 0.95), 3)],
                             [_r(np.quantile(nu_d[:, 0], 0.05), 3), _r(np.quantile(nu_d[:, 0], 0.95), 3)]],
@@ -408,6 +429,7 @@ def run(n_draws: int = 1000, n_sims: int = 10000, skip_venues: bool = False) -> 
                     t["markets"][mkt][q.venue] = {
                         "bid": _r(q.bid), "ask": _r(q.ask), "last": _r(q.last), "volume": _r(q.volume, 0),
                         "fee_rate": _r(fee_rate) if pd.notna(fee_rate) else None,
+                        "ticker": getattr(q, "ticker", None), "token": _str(getattr(q, "token", None)),
                         "edge_yes": _r(p / cost_yes - 1) if pd.notna(cost_yes) and cost_yes > 0 else None,
                         "edge_no": _r((1 - p) / cost_no - 1) if pd.notna(cost_no) and cost_no > 0 else None}
 

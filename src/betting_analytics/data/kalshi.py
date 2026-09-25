@@ -70,6 +70,7 @@ def _quote(m: dict) -> dict:
         "volume": _f(m.get("volume_fp")),
         "open_interest": _f(m.get("open_interest_fp")),
         "ticker": m["ticker"],
+        "invert": False,
         "close_time": m.get("close_time"),
     }
 
@@ -111,7 +112,7 @@ def match_quotes() -> pd.DataFrame:
                     side = "home" if team == home else "away"
                     sel_yes, sel_no, line = side, f"not_{side}", _f(m.get("floor_strike"))
                 rows.append({**base, "selection": sel_yes, "line": line, **q})
-                no = dict(q)
+                no = dict(q, invert=True)
                 no["bid"] = None if q["ask"] is None else round(1 - q["ask"], 4)
                 no["ask"] = None if q["bid"] is None else round(1 - q["bid"], 4)
                 no["last"] = None if q["last"] is None else round(1 - q["last"], 4)

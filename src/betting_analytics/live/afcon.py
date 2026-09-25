@@ -25,7 +25,9 @@ from ..models import international as intl
 from . import pricing
 
 OUT = config.SITE_DATA / "afcon.json"
+SIM_OUT = config.SITE_DATA / "afcon_sim.json"
 LEDGER = config.LEDGER / "afcon_predictions.csv"
+N_RATE_DRAWS = 100      # parameter draws exported for the browser's live group simulation
 
 
 def _r(x, nd=4):
@@ -138,8 +140,8 @@ def _table(teams: list[str], played: pd.DataFrame) -> dict:
 
 def _update_ledger(rows: list[dict], played: pd.DataFrame, now: pd.Timestamp) -> pd.DataFrame:
     cols = ["event_id", "kickoff_utc", "home", "away", "first_forecast_utc", "last_forecast_utc",
-            "p_h", "p_d", "p_a", "book_h", "book_d", "book_a", "book", "hg", "ag"]
-    led = pd.read_csv(LEDGER, dtype={"event_id": str}) if LEDGER.exists() else pd.DataFrame(columns=cols)
+            "p_h", "p_d", "p_a", "lam", "nu", "book_h", "book_d", "book_a", "book", "hg", "ag"]
+    led = pd.read_csv(LEDGER, dtype={"event_id": str}).reindex(columns=cols) if LEDGER.exists() else pd.DataFrame(columns=cols)
     led = led.set_index("event_id") if len(led) else pd.DataFrame(columns=cols).set_index("event_id")
     for r in rows:
         if pd.Timestamp(r["kickoff_utc"]) <= now:
@@ -162,6 +164,31 @@ def _update_ledger(rows: list[dict], played: pd.DataFrame, now: pd.Timestamp) ->
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     led[cols].to_csv(LEDGER, index=False, float_format="%.5f")
     return led[cols]
+
+
+def _write_sim_inputs(model, groups, played, neutral_home, gs, rng, now) -> None:
+    """Scoring rates of every unplayed group fixture under N_RATE_DRAWS joint parameter draws.
+
+    The browser re-simulates a group from these when ESPN reports a result or a
+    live score the last server run did not have, so group odds follow the
+    scoreboard between server runs. Drawing (lam, nu) jointly per draw keeps
+    the correlation between fixtures that share a team.
+    """
+    theta = model.sample_theta(N_RATE_DRAWS, rng)
+    ev = {(r.home, r.away): r.event_id for r in gs.itertuples()}
+    out = {"generated_utc": now.isoformat(), "rho": _r(model.rho), "draws": N_RATE_DRAWS, "hosts": sorted(afcon.HOSTS), "groups": {}}
+    for g, teams in groups.items():
+        done = {(r.home, r.away) for r in played.itertuples() if r.home in teams}
+        fx = [(h, a) for h in teams for a in teams if h != a and (h, a) not in done]
+        rows = []
+        if fx:
+            neutral = [h in neutral_home for h, _ in fx]
+            lam, nu = model.rates([h for h, _ in fx], [a for _, a in fx], neutral, theta)      # (draws, fixtures)
+            for j, (h, a) in enumerate(fx):
+                rows.append({"home": h, "away": a, "event_id": ev.get((h, a)), "neutral": bool(neutral[j]),
+                             "lam": [round(float(x), 3) for x in lam[:, j]], "nu": [round(float(x), 3) for x in nu[:, j]]})
+        out["groups"][g] = {"teams": teams, "fixtures": rows}
+    SIM_OUT.write_text(json.dumps(out, separators=(",", ":")))
 
 
 def run(n_sims: int = 10000) -> dict:
@@ -211,7 +238,9 @@ def run(n_sims: int = 10000) -> dict:
             q = pm[pm["team"] == r["team"]]
             if len(q):
                 q = q.iloc[0]
-                r["market"] = {"venue": "Polymarket", "bid": _r(q["bid"]), "ask": _r(q["ask"]), "volume": _r(q["volume"], 0)}
+                r["market"] = {"venue": "Polymarket", "bid": _r(q["bid"]), "ask": _r(q["ask"]), "volume": _r(q["volume"], 0),
+                               "fee_rate": _r(q["fee_rate"]) if pd.notna(q["fee_rate"]) else 0.0,
+                               "token": q["token"] if isinstance(q.get("token"), str) else None}
                 if np.isfinite(q["ask"]) and np.isfinite(q["bid"]) and q["ask"] - q["bid"] <= 0.08:
                     fee = q["fee_rate"] if pd.notna(q["fee_rate"]) else 0.0
                     cy = pricing.cost_per_contract(q["ask"], "polymarket", fee)
@@ -240,6 +269,8 @@ def run(n_sims: int = 10000) -> dict:
         if r.state != "pre" and r.event_id in frozen.index:
             f = frozen.loc[r.event_id]
             m.update({"p_h": _r(f["p_h"]), "p_d": _r(f["p_d"]), "p_a": _r(f["p_a"]), "frozen_utc": f["last_forecast_utc"]})
+            if pd.notna(f.get("lam")) and pd.notna(f.get("nu")):
+                m["xg"] = [_r(f["lam"], 3), _r(f["nu"], 3)]
             if pd.notna(f["book_h"]):
                 m["book"] = {"provider": f["book"], "p": [_r(f["book_h"]), _r(f["book_d"]), _r(f["book_a"])]}
         if r.state == "pre":
@@ -249,7 +280,7 @@ def run(n_sims: int = 10000) -> dict:
             ps = dc.outcome_probs(model.score_matrix([r.home], [r.away], [r.neutral], theta_s))[:, 0]   # (1000, 3)
             m["range90"] = [[_r(q) for q in np.quantile(ps[:, k], [0.05, 0.95])] for k in range(3)]
             m.update({"p_h": _r(p[0]), "p_d": _r(p[1]), "p_a": _r(p[2]), "p_o25": _r(dc.prob_over(M, 2.5)),
-                      "xg": [_r(lam[0], 2), _r(nu[0], 2)], "score_matrix": [[_r(v, 4) for v in row[:6]] for row in M[:6]]})
+                      "xg": [_r(lam[0], 3), _r(nu[0], 3)], "score_matrix": [[_r(v, 4) for v in row[:6]] for row in M[:6]]})
             try:
                 o = afcon.espn_odds(r.event_id)
             except Exception:
@@ -261,7 +292,7 @@ def run(n_sims: int = 10000) -> dict:
                              "odds_over": _r(o.get("odds_over"), 3), "odds_under": _r(o.get("odds_under"), 3)}
                 m["edges"] = {s: _r(pm_ * od - 1) for s, pm_, od in (("H", p[0], o["odds_h"]), ("D", p[1], o["odds_d"]), ("A", p[2], o["odds_a"]))}
             ledger_rows.append({"event_id": r.event_id, "kickoff_utc": r.kickoff_utc.isoformat(), "home": r.home, "away": r.away,
-                                "p_h": p[0], "p_d": p[1], "p_a": p[2],
+                                "p_h": p[0], "p_d": p[1], "p_a": p[2], "lam": float(lam[0]), "nu": float(nu[0]),
                                 "book_h": m.get("book", {}).get("p", [None] * 3)[0], "book_d": m.get("book", {}).get("p", [None] * 3)[1],
                                 "book_a": m.get("book", {}).get("p", [None] * 3)[2], "book": m.get("book", {}).get("provider")})
         matches.append(m)
@@ -281,7 +312,8 @@ def run(n_sims: int = 10000) -> dict:
 
     n = len(model.teams)
     net = dict(zip(model.teams, model.theta[2:2 + n] - model.theta[2 + n:]))
-    out = {"generated_utc": now.isoformat(), "n_sims": n_sims, "config": cfg,
+    _write_sim_inputs(model, groups, played, neutral_home, gs, np.random.default_rng(seed + 2), now)
+    out = {"generated_utc": now.isoformat(), "n_sims": n_sims, "config": cfg, "rho": _r(model.rho),
            "rule": "Top two in each group qualify; in Kenya's, Uganda's and Tanzania's groups the host qualifies automatically and only the best other team goes through.",
            "groups": groups_out, "matches": matches, "market_gaps": list(best_gap.values()), "record": record,
            "ratings": sorted([{"team": t, "net": _r(net[t], 3), **(meta.get(t) or {})} for t in all_teams], key=lambda x: -x["net"])}
