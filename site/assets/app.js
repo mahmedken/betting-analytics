@@ -1,4 +1,5 @@
 import { esc, pct, signed, cents, num, badge, bar3, barsCI, teamBars, pairBars, dotRow, heatmap, posStrip, lines, legend, placeTip } from "./charts.js";
+import { pageAfcon, afconToday } from "./afcon.js";
 
 const app = document.getElementById("app");
 const tip = document.getElementById("tip");
@@ -125,7 +126,7 @@ function findingCard(f) {
 // Today
 // ---------------------------------------------------------------------------
 async function pageToday() {
-  const [meta, sig, md, lab] = await Promise.all([load("meta.json"), load("signals.json"), load("matches.json"), opt("lab.json")]);
+  const [meta, sig, md, lab, af] = await Promise.all([load("meta.json"), load("signals.json"), load("matches.json"), opt("lab.json"), opt("afcon.json")]);
   const matches = md.matches;
   const live = [...sig.maker, ...sig.best_price, ...sig.arbitrage];
   const season = sig.season.slice(0, 3);
@@ -142,6 +143,7 @@ async function pageToday() {
       <div class="chips"><span class="chip"><b>${matches.length}</b> fixtures</span>${first ? `<span class="chip">from <b>${day(first)}</b></span>` : ""}<span class="chip"><b>${sig.season.length}</b> season-market gaps</span></div></div>
     <h2>Live signals <a href="#/lab">How they were tested →</a></h2>
     ${liveHtml}
+    ${afconToday(af)}
     ${season.length ? `<h2>Season markets <a href="#/season">All ${sig.season.length} →</a></h2><div class="grid">${season.map(seasonCard).join("")}</div>` : ""}
     <h2>Fixtures <a href="#/matches">All →</a></h2>
     <div class="grid">${matches.map(fixtureCard).join("")}</div>
@@ -338,6 +340,7 @@ async function route() {
     if (r === "match") await pageMatch(decodeURIComponent(arg || ""));
     else if (r === "matches") await pageMatches();
     else if (r === "season") await pageSeason();
+    else if (r === "afcon") await pageAfcon(app, load);
     else if (r === "lab") await pageLab();
     else if (r === "record") await pageRecord();
     else if (r === "method") await pageMethod();

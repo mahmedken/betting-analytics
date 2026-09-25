@@ -19,6 +19,12 @@ export function bar3(home, away, h, d, a) {
     <i style="width:${100 * h}%;background:${hc}"></i><i class="dr" style="width:${100 * d}%"></i><i style="width:${100 * a}%;background:${ac}"></i></div>`;
 }
 
+// Same bar with explicit colours (national teams)
+export function bar3c(hc, ac, h, d, a) {
+  return `<div class="bar3" data-tip="${esc(`home ${pct(h, 1)} · draw ${pct(d, 1)} · away ${pct(a, 1)}`)}">
+    <i style="width:${100 * h}%;background:${hc}"></i><i class="dr" style="width:${100 * d}%"></i><i style="width:${100 * a}%;background:${ac}"></i></div>`;
+}
+
 // Horizontal bars with 90% interval whiskers; rows [{label, clv, clv_ci90, n_filled, with_bias}]
 export function barsCI(rows, { unit = "pct", width = 560 } = {}) {
   const rowH = 40, m = { l: 210, r: 70, t: 10, b: 24 };

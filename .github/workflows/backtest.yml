@@ -37,6 +37,9 @@ jobs:
       - run: uv run ba backtest
       - run: uv run ba venues
       - run: uv run ba lab --fetch
+      - name: afcon backtest
+        continue-on-error: true
+        run: uv run ba afcon-backtest
       - name: commit
         run: |
           git config user.name "github-actions[bot]"

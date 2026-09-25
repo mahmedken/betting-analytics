@@ -1,7 +1,8 @@
 name: refresh
 
 # Hourly: fetch results, fixtures and prices, refit the model, simulate the
-# season, update the prediction ledger, commit the data and redeploy the site.
+# season, update the prediction ledgers (Premier League and AFCON qualifying),
+# commit the data and redeploy the site.
 on:
   schedule:
     - cron: "17 * * * *"
@@ -28,6 +29,10 @@ jobs:
       - run: uv sync --frozen
       - name: refresh
         run: uv run ba refresh
+      - name: afcon
+        # ESPN or Polymarket outages must not block the Premier League refresh.
+        continue-on-error: true
+        run: uv run ba afcon
       - name: commit data
         run: |
           git config user.name "github-actions[bot]"

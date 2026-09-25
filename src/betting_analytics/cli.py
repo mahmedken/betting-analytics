@@ -97,6 +97,16 @@ def cmd_refresh(args) -> None:
     pipeline.run(n_draws=args.draws, n_sims=args.sims, skip_venues=args.skip_venues)
 
 
+def cmd_afcon(args) -> None:
+    from .live import afcon
+    afcon.run(n_sims=args.sims)
+
+
+def cmd_afcon_backtest(args) -> None:
+    from .evaluation import afcon_backtest
+    afcon_backtest.run()
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(prog="ba")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -118,6 +128,10 @@ def main(argv=None) -> None:
     r.add_argument("--sims", type=int, default=10000)
     r.add_argument("--skip-venues", action="store_true")
     r.set_defaults(func=cmd_refresh)
+    a = sub.add_parser("afcon", help="AFCON qualifying forecasts, group simulation and markets")
+    a.add_argument("--sims", type=int, default=10000)
+    a.set_defaults(func=cmd_afcon)
+    sub.add_parser("afcon-backtest", help="walk-forward backtest on past AFCON qualifiers; sets the AFCON model settings").set_defaults(func=cmd_afcon_backtest)
     args = p.parse_args(argv)
     args.func(args)
 

@@ -43,6 +43,17 @@ const dist = (a, b) => { const x = hex(a), y = hex(b); return Math.hypot(x[0] - 
 export const color = (team) => (CLUB[team] || ["#6b7280", "#d1d5db"])[0];
 export const ink = (bg) => (lum(bg) > 0.4 ? "#0b0d10" : "#ffffff");
 
+// Colours for two national teams from ESPN's single team colour. White and
+// near-white would vanish on a light card, so they become a light grey with a
+// dark edge; an away colour too close to the home colour becomes a neutral.
+export function pairColors(hc = "#6b7280", ac = "#9ca3af") {
+  const fix = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? (lum(c) > 0.8 ? "#cfd3d9" : c) : "#6b7280");
+  const h = fix(hc);
+  let a = fix(ac);
+  if (dist(h, a) < 0.35) a = lum(h) > 0.3 ? "#1f2430" : "#9aa1ab";
+  return [h, a];
+}
+
 // Colours for a fixture: home primary, and away primary unless it is too close
 // to the home colour, in which case the away secondary.
 export function pair(home, away) {
