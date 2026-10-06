@@ -36,3 +36,10 @@ season|Chelsea|title|polymarket|no,season,2026-09-29T23:01:05+00:00,Polymarket,,
 season|Fulham|relegation|kalshi|no,season,2026-10-02T00:52:47+00:00,Kalshi,,Fulham,Fulham not to be relegated,buy,0.72,0.7341,0.04534457957368909
 season|Newcastle|relegation|polymarket|no,season,2026-10-02T19:23:39+00:00,Polymarket,,Newcastle,Newcastle not to be relegated,buy,0.911,0.9151,0.05698685853440666
 season|Everton|top4|polymarket|no,season,2026-10-06T00:52:01+00:00,Polymarket,,Everton,Everton not to finish top four,buy,0.91,0.9141,0.05437618628260732
+maker|20261010-ARS-LEE|H,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-ARS-LEE,,Arsenal to win,offer,0.72,0.2835,0.022558
+maker|20261010-ARS-LEE|D,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-ARS-LEE,,Draw,bid,0.18,0.1826,0.017133
+maker|20261010-AVL-BRE|D,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-AVL-BRE,,Draw,bid,0.27,0.2734,0.017133
+maker|20261010-CHE-BOU|H,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-CHE-BOU,,Chelsea to win,offer,0.58,0.4243,0.022558
+maker|20261010-CHE-BOU|D,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-CHE-BOU,,Draw,bid,0.22,0.223,0.017133
+maker|20261010-IPS-FUL|D,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-IPS-FUL,,Draw,bid,0.27,0.2734,0.017133
+maker|20261010-SUN-BHA|D,maker,2026-10-06T15:17:02+00:00,Kalshi,20261010-SUN-BHA,,Draw,bid,0.27,0.2734,0.017133
