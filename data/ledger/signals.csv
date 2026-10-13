@@ -61,3 +61,10 @@ season|Brentford|top4|polymarket|no,season,2026-10-11T18:09:39+00:00,Polymarket,
 season|Crystal Palace|relegation|polymarket|yes,season,2026-10-11T22:06:34+00:00,Polymarket,,Crystal Palace,Crystal Palace to be relegated,buy,0.23,0.2389,0.13876619706516502
 season|Man United|top4|polymarket|yes,season,2026-10-11T22:06:34+00:00,Polymarket,,Man United,Man United to finish top four,buy,0.27,0.2799,0.10771649604259337
 season|Bournemouth|relegation|polymarket|no,season,2026-10-12T19:52:13+00:00,Polymarket,,Bournemouth,Bournemouth not to be relegated,buy,0.88,0.8853,0.04034881619374664
+maker|20261017-EVE-CHE|A,maker,2026-10-13T17:39:22+00:00,Kalshi,20261017-EVE-CHE,,Chelsea to win,offer,0.46,0.5443,0.022558
+maker|20261017-EVE-CHE|D,maker,2026-10-13T17:39:22+00:00,Kalshi,20261017-EVE-CHE,,Draw,bid,0.25,0.2533,0.017133
+maker|20261017-BRE-LIV|D,maker,2026-10-13T17:39:22+00:00,Kalshi,20261017-BRE-LIV,,Draw,bid,0.25,0.2533,0.017133
+maker|20261017-MCI-IPS|H,maker,2026-10-13T17:39:22+00:00,Kalshi,20261017-MCI-IPS,,Man City to win,offer,0.81,0.1927,0.022558
+maker|20261017-MCI-IPS|D,maker,2026-10-13T17:39:22+00:00,Kalshi,20261017-MCI-IPS,,Draw,bid,0.12,0.1218,0.017133
+maker|20261017-NEW-AVL|D,maker,2026-10-13T17:39:22+00:00,Kalshi,20261017-NEW-AVL,,Draw,bid,0.25,0.2533,0.017133
+season|Liverpool|relegation|polymarket|no,season,2026-10-13T17:39:22+00:00,Polymarket,,Liverpool,Liverpool not to be relegated,buy,0.966,0.9676,0.032819775739421075
