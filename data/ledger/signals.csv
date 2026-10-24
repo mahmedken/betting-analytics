@@ -102,3 +102,5 @@ maker|20261024-CHE-TOT|A,maker,2026-10-22T22:26:23+00:00,Kalshi,20261024-CHE-TOT
 best|20261024-CHE-TOT|1x2|A|None,best_price,2026-10-23T18:27:50+00:00,best bookmaker price,20261024-CHE-TOT,,,buy,4.85,,0.075
 best|20261025-LIV-BHA|1x2|A|None,best_price,2026-10-23T18:27:50+00:00,best bookmaker price,20261025-LIV-BHA,,,buy,3.4,,0.0557
 season|Fulham|top4|polymarket|no,season,2026-10-23T22:19:02+00:00,Polymarket,,Fulham,Fulham not to finish top four,buy,0.957,0.9591,0.03904087924650623
+season|Fulham|relegation|polymarket|yes,season,2026-10-24T16:41:28+00:00,Polymarket,,Fulham,Fulham to be relegated,buy,0.19,0.1977,0.16543159918055572
+season|Newcastle|top4|polymarket|no,season,2026-10-24T16:41:28+00:00,Polymarket,,Newcastle,Newcastle not to finish top four,buy,0.92,0.9237,0.03748051273168196
