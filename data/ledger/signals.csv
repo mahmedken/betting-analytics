@@ -104,3 +104,5 @@ best|20261025-LIV-BHA|1x2|A|None,best_price,2026-10-23T18:27:50+00:00,best bookm
 season|Fulham|top4|polymarket|no,season,2026-10-23T22:19:02+00:00,Polymarket,,Fulham,Fulham not to finish top four,buy,0.957,0.9591,0.03904087924650623
 season|Fulham|relegation|polymarket|yes,season,2026-10-24T16:41:28+00:00,Polymarket,,Fulham,Fulham to be relegated,buy,0.19,0.1977,0.16543159918055572
 season|Newcastle|top4|polymarket|no,season,2026-10-24T16:41:28+00:00,Polymarket,,Newcastle,Newcastle not to finish top four,buy,0.92,0.9237,0.03748051273168196
+season|Liverpool|title|polymarket|no,season,2026-10-25T17:05:38+00:00,Polymarket,,Liverpool,Liverpool not to win the league,buy,0.929,0.931,0.050507306412583386
+season|Brentford|relegation|kalshi|no,season,2026-10-25T17:05:38+00:00,Kalshi,,Brentford,Brentford not to be relegated,buy,0.95,0.9533,0.03647759158733899
