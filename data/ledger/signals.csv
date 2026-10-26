@@ -107,3 +107,5 @@ season|Newcastle|top4|polymarket|no,season,2026-10-24T16:41:28+00:00,Polymarket,
 season|Liverpool|title|polymarket|no,season,2026-10-25T17:05:38+00:00,Polymarket,,Liverpool,Liverpool not to win the league,buy,0.929,0.931,0.050507306412583386
 season|Brentford|relegation|kalshi|no,season,2026-10-25T17:05:38+00:00,Kalshi,,Brentford,Brentford not to be relegated,buy,0.95,0.9533,0.03647759158733899
 season|Ipswich|top4|polymarket|no,season,2026-10-26T01:17:56+00:00,Polymarket,,Ipswich,Ipswich not to finish top four,buy,0.959,0.961,0.039162729959370646
+season|Coventry|relegation|polymarket|yes,season,2026-10-26T15:16:43+00:00,Polymarket,,Coventry,Coventry to be relegated,buy,0.57,0.5823,0.05967316725489691
+season|Liverpool|title|kalshi|no,season,2026-10-26T15:16:43+00:00,Kalshi,,Liverpool,Liverpool not to win the league,buy,0.92,0.9252,0.04998962332676138
