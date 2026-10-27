@@ -110,3 +110,6 @@ season|Ipswich|top4|polymarket|no,season,2026-10-26T01:17:56+00:00,Polymarket,,I
 season|Coventry|relegation|polymarket|yes,season,2026-10-26T15:16:43+00:00,Polymarket,,Coventry,Coventry to be relegated,buy,0.57,0.5823,0.05967316725489691
 season|Liverpool|title|kalshi|no,season,2026-10-26T15:16:43+00:00,Kalshi,,Liverpool,Liverpool not to win the league,buy,0.92,0.9252,0.04998962332676138
 season|Everton|relegation|polymarket|yes,season,2026-10-26T20:37:38+00:00,Polymarket,,Everton,Everton to be relegated,buy,0.052,0.0545,0.6083782553135237
+maker|20261031-CHE-MUN|H,maker,2026-10-27T13:20:53+00:00,Kalshi,20261031-CHE-MUN,,Chelsea to win,offer,0.54,0.4643,0.022558
+maker|20261031-CHE-MUN|A,maker,2026-10-27T13:20:53+00:00,Kalshi,20261031-CHE-MUN,,Man United to win,offer,0.23,0.7731,0.022558
+maker|20261031-CHE-MUN|D,maker,2026-10-27T13:20:53+00:00,Kalshi,20261031-CHE-MUN,,Draw,bid,0.24,0.2432,0.017133
