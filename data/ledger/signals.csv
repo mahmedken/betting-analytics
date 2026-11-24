@@ -165,3 +165,5 @@ best|20261122-HUL-BHA|1x2|H|None,best_price,2026-11-20T11:52:57+00:00,best bookm
 best|20261122-LIV-MUN|1x2|A|None,best_price,2026-11-20T11:52:57+00:00,best bookmaker price,20261122-LIV-MUN,,,buy,4.5,,0.0566
 season|Crystal Palace|relegation|kalshi|yes,season,2026-11-22T16:23:36+00:00,Kalshi,,Crystal Palace,Crystal Palace to be relegated,buy,0.43,0.4472,0.07210666499685803
 season|Brighton|top4|polymarket|yes,season,2026-11-23T14:53:09+00:00,Polymarket,,Brighton,Brighton to finish top four,buy,0.57,0.5823,0.06877570823779955
+maker|20261127-NFO-CHE|A,maker,2026-11-24T02:18:44+00:00,Kalshi,20261127-NFO-CHE,,Chelsea to win,offer,0.36,0.644,0.022558
+maker|20261127-NFO-CHE|D,maker,2026-11-24T02:18:44+00:00,Kalshi,20261127-NFO-CHE,,Draw,bid,0.28,0.2835,0.017133
